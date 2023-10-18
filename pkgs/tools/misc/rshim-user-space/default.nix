@@ -3,13 +3,13 @@
 , fetchFromGitHub
 , autoconf
 , automake
-, makeWrapper
+, makeBinaryWrapper
 , pkg-config
 , pciutils
 , libusb1
 , fuse
+, busybox
 , pv
-, getopt
 }:
 
 stdenv.mkDerivation rec {
@@ -27,15 +27,15 @@ stdenv.mkDerivation rec {
     autoconf
     automake
     pkg-config
-    makeWrapper
+    makeBinaryWrapper
   ];
 
   buildInputs = [
     pciutils
     libusb1
     fuse
+    busybox
     pv
-    getopt
   ];
 
   strictDeps = true;
@@ -46,8 +46,11 @@ stdenv.mkDerivation rec {
     mkdir -p "$out"/bin
     cp -a src/rshim "$out"/bin/
     cp -a scripts/bfb-install "$out"/bin/
-    wrapProgram "$out"/bin/bfb-install \
-        --prefix PATH : ${lib.makeBinPath [ pv getopt ]}
+  '';
+
+  postFixup = ''
+    wrapProgram $out/bin/bfb-install \
+      --set PATH ${lib.makeBinPath [ busybox pv ]}
   '';
 
   meta = with lib; {
