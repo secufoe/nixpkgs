@@ -19,6 +19,9 @@
   which,
   util-linux,
   withBfbInstall ? true,
+  withBfbTool ? true,
+  bfscripts,
+  jq,
 }:
 
 stdenv.mkDerivation rec {
@@ -45,8 +48,11 @@ stdenv.mkDerivation rec {
     fuse
   ];
 
-  prePatch = ''
+  prePatch = lib.optionalString withBfbInstall ''
     patchShebangs scripts/bfb-install
+  ''
+  + lib.optionalString withBfbTool ''
+    patchShebangs scripts/bfb-tool
   '';
 
   strictDeps = true;
@@ -59,6 +65,7 @@ stdenv.mkDerivation rec {
   ''
   + lib.optionalString withBfbInstall ''
     cp -a scripts/bfb-install "$out"/bin/
+    cp -a scripts/bfb-tool "$out"/bin/
   '';
 
   postFixup = lib.optionalString withBfbInstall ''
@@ -75,6 +82,16 @@ stdenv.mkDerivation rec {
           pv
           util-linux
           which
+        ]
+      }
+  ''
+  + lib.optionalString withBfbInstall ''
+    wrapProgram $out/bin/bfb-tool \
+      --set PATH ${
+        lib.makeBinPath [
+          bfscripts
+          busybox
+          jq
         ]
       }
   '';
