@@ -90,7 +90,16 @@ stdenv.mkDerivation rec {
       --set PATH ${
         lib.makeBinPath [
           bfscripts
-          busybox
+          bashNonInteractive
+          coreutils
+          gawk
+          gnugrep
+          gnused
+          pciutils
+          procps
+          pv
+          util-linux
+          which
           jq
         ]
       }
