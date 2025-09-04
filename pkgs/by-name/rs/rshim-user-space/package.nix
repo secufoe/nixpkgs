@@ -22,6 +22,7 @@
   withBfbTool ? true,
   bfscripts,
   jq,
+  cpio,
 }:
 
 stdenv.mkDerivation rec {
@@ -101,6 +102,7 @@ stdenv.mkDerivation rec {
           util-linux
           which
           jq
+          cpio
         ]
       }
   '';
