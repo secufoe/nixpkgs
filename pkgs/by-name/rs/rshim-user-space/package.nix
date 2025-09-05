@@ -23,6 +23,7 @@
   bfscripts,
   jq,
   cpio,
+  gzip,
 }:
 
 stdenv.mkDerivation rec {
@@ -103,6 +104,7 @@ stdenv.mkDerivation rec {
           which
           jq
           cpio
+          gzip
         ]
       }
   '';
