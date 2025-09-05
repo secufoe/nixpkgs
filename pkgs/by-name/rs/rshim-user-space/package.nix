@@ -29,13 +29,13 @@
 
 stdenv.mkDerivation rec {
   pname = "rshim-user-space";
-  version = "2.4.4";
+  version = "2.5.1";
 
   src = fetchFromGitHub {
     owner = "Mellanox";
     repo = "rshim-user-space";
     rev = "rshim-${version}";
-    hash = "sha256-w2+1tUDWYmgDC0ycWGdtVfdbkZCmtvwXm47qK5PCCfg=";
+    hash = "sha256-wHU9XmAMWiwyus2A5IseWHd+woplzI0LJXH6MEAwdGs=";
   };
 
   nativeBuildInputs = [
