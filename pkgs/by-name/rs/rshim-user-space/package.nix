@@ -24,6 +24,7 @@
   jq,
   cpio,
   gzip,
+  bintools,
 }:
 
 stdenv.mkDerivation rec {
@@ -105,6 +106,7 @@ stdenv.mkDerivation rec {
           jq
           cpio
           gzip
+          bintools
         ]
       }
   '';
