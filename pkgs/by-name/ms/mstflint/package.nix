@@ -45,7 +45,6 @@ stdenv.mkDerivation rec {
   ];
 
   buildInputs = [
-    rdma-core
     zlib
     libxml2
     openssl
@@ -54,8 +53,9 @@ stdenv.mkDerivation rec {
     boost
     curl
     expat
-    xz
     python3
+    rdma-core
+    xz
   ];
 
   preConfigure = ''
@@ -101,6 +101,10 @@ stdenv.mkDerivation rec {
   configureFlags = [
     "--enable-xml2"
     "--datarootdir=${placeholder "out"}/share"
+  ]
+  ++ lib.optionals onlyFirmwareUpdater [
+    "--disable-inband"
+    "--disable-rdmem"
   ]
   ++ lib.optionals (!onlyFirmwareUpdater) [
     "--enable-adb-generic-tools"
