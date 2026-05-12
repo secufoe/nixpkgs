@@ -18,12 +18,21 @@
   automake,
   autoconf,
   libtool,
-  git,
-  # use this to shrink the package's footprint if necessary (e.g. for hardened appliances)
-  onlyFirmwareUpdater ? false,
+  # use these to shrink the package's footprint if necessary (e.g. for hardened appliances)
+  enableADBGenericTools ? true,
+  enableBoost ? true,
   # contains binary-only libraries
   enableDPA ? true,
+  enableFwMgr ? true,
+  enableOpenssl ? true,
+  enablePython ? true,
+  enableRDMA ? true,
+  enableZlib ? true,
 }:
+
+assert enableDPA -> enableOpenssl;
+assert enableFwMgr -> enableOpenssl;
+assert enableFwMgr -> enableZlib;
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "mstflint";
@@ -32,7 +41,7 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "Mellanox";
     repo = finalAttrs.pname;
-    tag = "v${finalAttrs.version}";
+    rev = "v${finalAttrs.version}";
     hash = "sha256-sz/pIV7eV/lZe6Wckao+frf8HUcWnAVBAV2+gC5KJ3U=";
   };
 
@@ -41,30 +50,54 @@ stdenv.mkDerivation (finalAttrs: {
     automake
     libtool
     pkg-config
-    libxml2
-    git
-  ];
-
-  buildInputs = [
-    rdma-core
-    zlib
-    libxml2
-    openssl
   ]
-  ++ lib.optionals (!onlyFirmwareUpdater) [
-    bashNonInteractive
-    boost
-    curl
-    expat
-    xz
-    python3
+  ++ lib.optionals enableFwMgr [
+    libxml2
   ];
 
-  preConfigure = ''
-    export CPPFLAGS="-I$(pwd)/tools_layouts -isystem ${libxml2.dev}/include/libxml2"
-    export INSTALL_BASEDIR=$out
-    ./autogen.sh
-  '';
+  buildInputs =
+    lib.optionals enableADBGenericTools [
+      expat
+      xz
+    ]
+    ++ lib.optionals enableBoost [
+      boost
+    ]
+    ++ lib.optionals enableFwMgr [
+      curl
+      libxml2
+      xz
+    ]
+    ++ lib.optionals enableOpenssl [
+      openssl
+    ]
+    ++ lib.optionals enablePython [
+      bashNonInteractive
+      busybox
+      pciutils
+      python3
+    ]
+    ++ lib.optionals enableRDMA [
+      rdma-core
+    ]
+    ++ lib.optionals enableZlib [
+      zlib
+    ];
+
+  preConfigure = lib.optionalString enableBoost ''
+      export CPPFLAGS="$CPPFLAGS -DUSE_BOOST -DUSE_BOOST_ALGORITHM -DUSE_BOOST_REGEX"
+    ''
+    + lib.optionalString enableADBGenericTools ''
+      export CPPFLAGS="$CPPFLAGS -I$(pwd)/tools_layouts"
+    ''
+    + lib.optionalString enableFwMgr ''
+      export CPPFLAGS="$CPPFLAGS -isystem ${libxml2.dev}/include/libxml2"
+    ''
+    + ''
+      echo ${finalAttrs.src.rev} > tools_git_sha
+      export INSTALL_BASEDIR=$out
+      ./autogen.sh
+    '';
 
   # Cannot use wrapProgram since the python script's logic depends on the
   # filename and will get messed up if the executable is named ".xyz-wrapped".
@@ -78,17 +111,17 @@ stdenv.mkDerivation (finalAttrs: {
   # got merged.
   prePatch = [
     ''
-      patchShebangs eval_git_sha.sh
+      patchShebangs --build eval_git_sha.sh
       substituteInPlace configure.ac \
-          --replace "build_cpu" "host_cpu"
+          --replace-fail "build_cpu" "host_cpu"
       substituteInPlace common/compatibility.h \
-          --replace "#define ROOT_PATH \"/\"" "#define ROOT_PATH \"$out/\""
+          --replace-fail "#define ROOT_PATH \"/\"" "#define ROOT_PATH \"$out/\""
       substituteInPlace configure.ac \
-          --replace 'Whether to use GNU C regex])' 'Whether to use GNU C regex])],[AC_MSG_RESULT([yes])'
+          --replace-fail 'Whether to use GNU C regex])' 'Whether to use GNU C regex])],[AC_MSG_RESULT([yes])'
     ''
-    (lib.optionals (!onlyFirmwareUpdater) ''
+    (lib.optionals enablePython ''
       substituteInPlace common/python_wrapper.sh \
-        --replace \
+        --replace-fail \
         'exec $PYTHON_EXEC $SCRIPT_PATH "$@"' \
         'export PATH=$PATH:${
           lib.makeBinPath [
@@ -101,19 +134,35 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   configureFlags = [
-    "--enable-xml2"
     "--datarootdir=${placeholder "out"}/share"
   ]
-  ++ lib.optionals (!onlyFirmwareUpdater) [
+  ++ lib.optionals enableADBGenericTools [
     "--enable-adb-generic-tools"
-    "--enable-cs"
-    "--enable-dc"
-    "--enable-fw-mgr"
-    "--enable-inband"
-    "--enable-rdmem"
   ]
   ++ lib.optionals enableDPA [
     "--enable-dpa"
+  ]
+  ++ lib.optionals enableFwMgr [
+    "--enable-fw-mgr"
+    "--enable-xml2"
+  ]
+  ++ lib.optionals enableOpenssl [
+    "--enable-cs"
+  ]
+  ++ lib.optionals (!enableOpenssl) [
+    "--disable-cs"
+    "--disable-openssl"
+  ]
+  ++ lib.optionals enableRDMA [
+    "--enable-inband"
+    "--enable-rdmem"
+  ]
+  ++ lib.optionals (!enableRDMA) [
+    "--disable-inband"
+    "--disable-rdmem"
+  ]
+  ++ lib.optionals (!enableZlib) [
+    "--disable-dc"
   ];
 
   enableParallelBuilding = true;
@@ -121,6 +170,8 @@ stdenv.mkDerivation (finalAttrs: {
   hardeningDisable = [ "format" ];
 
   dontDisableStatic = true; # the build fails without this. should probably be reported upstream
+
+  strictDeps = true;
 
   meta = {
     description = "Open source version of Mellanox Firmware Tools (MFT)";
